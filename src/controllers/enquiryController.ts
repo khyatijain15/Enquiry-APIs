@@ -1,0 +1,221 @@
+import { Request, Response } from "express";
+import { Op } from "sequelize";
+import Enquiry from "../models/enquiryModel";
+
+// CREATE
+export const createEnquiry = async (req: Request, res: Response) => {
+
+  try {
+
+    if (!Object.keys(req.body).length) {
+      return res.status(400).json({
+        status: false,
+        message: "Request body cannot be empty",
+        data: null
+      });
+    }
+
+    const enquiry = await Enquiry.create(req.body);
+
+    res.status(201).json({
+      status: true,
+      message: "Enquiry created successfully",
+      data: enquiry
+    });
+
+  } catch (error: any) {
+
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(400).json({
+        status: false,
+        message: "Duplicate enquiry already exists (DB level)",
+        data: null
+      });
+    }
+
+    res.status(500).json({
+      status: false,
+      message: "Error creating enquiry",
+      data: null
+    });
+
+  }
+
+};
+
+
+// GET ALL 
+export const getEnquiries = async (req: Request, res: Response) => {
+
+  try {
+
+    const { page, limit, search } = req.query;
+
+    if (!page && !limit && !search) {
+
+      const enquiries = await Enquiry.findAll();
+
+      return res.json({
+        status: true,
+        message: "Enquiries fetched successfully",
+        data: enquiries
+      });
+
+    }
+
+    const pageNumber = Number(page) || 1;
+    const limitNumber = Number(limit) || 5;
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const whereCondition: any = {};
+
+    if (search) {
+      whereCondition.caller_name = {
+        [Op.like]: `%${search}%`
+      };
+    }
+
+    const enquiries = await Enquiry.findAndCountAll({
+      where: whereCondition,
+      limit: limitNumber,
+      offset
+    });
+
+    res.json({
+      total: enquiries.count,
+      page: pageNumber,
+      totalPages: Math.ceil(enquiries.count / limitNumber),
+      data: enquiries.rows
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      status: false,
+      message: "Error fetching enquiries",
+      data: null
+    });
+
+  }
+
+};
+
+
+// GET BY ID
+export const getEnquiryById = async (req: Request, res: Response) => {
+
+  try {
+
+    const id = Number(req.params.id);
+
+    if (isNaN(id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid ID",
+        data: null
+      });
+    }
+
+    const enquiry = await Enquiry.findByPk(id);
+
+    if (!enquiry) {
+      return res.status(404).json({
+        status: false,
+        message: "Enquiry not found",
+        data: null
+      });
+    }
+
+    res.json({
+      status: true,
+      message: "Enquiry fetched successfully",
+      data: enquiry
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      status: false,
+      message: "Error fetching enquiry",
+      data: null
+    });
+
+  }
+
+};
+
+
+// UPDATE
+export const updateEnquiry = async (req: Request, res: Response) => {
+
+  try {
+
+    const id = Number(req.params.id);
+
+    const enquiry = await Enquiry.findByPk(id);
+
+    if (!enquiry) {
+      return res.status(404).json({
+        status: false,
+        message: "Enquiry not found",
+        data: null
+      });
+    }
+
+    await enquiry.update(req.body);
+
+    res.json({
+      status: true,
+      message: "Enquiry updated successfully",
+      data: enquiry
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      status: false,
+      message: "Error updating enquiry",
+      data: null
+    });
+
+  }
+
+};
+
+
+// DELETE
+export const deleteEnquiry = async (req: Request, res: Response) => {
+
+  try {
+
+    const id = Number(req.params.id);
+
+    const enquiry = await Enquiry.findByPk(id);
+
+    if (!enquiry) {
+      return res.status(404).json({
+        status: false,
+        message: "Enquiry not found",
+        data: null
+      });
+    }
+
+    await enquiry.destroy();
+
+    res.json({
+      status: true,
+      message: "Enquiry deleted successfully",
+      data: null
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      status: false,
+      message: "Error deleting enquiry",
+      data: null
+    });
+
+  }
+
+};
