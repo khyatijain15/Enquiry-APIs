@@ -26,7 +26,27 @@ const Enquiry = sequelize.define("Enquiry", {
 
   placement_type: { type: DataTypes.STRING },
   preferred_location: { type: DataTypes.STRING },
-  urgency: { type: DataTypes.STRING },
+  urgency: { 
+    type: DataTypes.INTEGER,
+    allowNull:false,
+    validate:{
+      isIn:[[1,2,3]]
+    }
+   },
+
+   status:{
+      type:DataTypes.INTEGER,
+      defaultValue:0,
+      validate:{
+        isIn:[[0,1,2]]
+      }
+   },
+   reason:{
+       type:DataTypes.TEXT,
+       allowNull:true
+   },
+
+
 
   categories: { type: DataTypes.JSON }
 

@@ -45,9 +45,26 @@ export const createEnquiryValidator = [
     .isArray({ min: 1 }).withMessage("Methods required"),
 
   body("categories")
-    .isArray({ min: 1 }).withMessage("Categories required")
+    .isArray({ min: 1 }).withMessage("Categories required"),
+
+  body("urgency")
+       .isInt({min:1,max:3})
+       .withMessage("Urgency must be 1,2 or 3"),
+  body("methods").isArray({min:1}),
+  body("categories").isArray({min:1})       
 
 ];
+
+export const updateStatusValidator=[
+  body("status")
+  .isInt({min:0,max:2})
+  .withMessage("Status must be 0,1 or 2"),
+
+  body("reason")
+  .optional()
+  .isString()
+
+]
 
 export const enquiryIdValidator = [
   param("id").isInt().withMessage("Invalid ID")

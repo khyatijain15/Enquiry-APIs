@@ -5,7 +5,8 @@ import {
   getEnquiries,
   getEnquiryById,
   updateEnquiry,
-  deleteEnquiry
+  deleteEnquiry,
+  updateEnquiryStatus
 } from "../controllers/enquiryController";
 
 import {
@@ -23,5 +24,6 @@ router.get("/", verifyToken, getEnquiries);
 router.get("/:id", verifyToken, enquiryIdValidator, validate, getEnquiryById);
 router.put("/:id", verifyToken, enquiryIdValidator, validate, updateEnquiry);
 router.delete("/:id", verifyToken, enquiryIdValidator, validate, deleteEnquiry);
+router.patch("/:id/status",verifyToken,enquiryIdValidator,validate,updateEnquiryStatus);
 
 export default router;
