@@ -45,10 +45,12 @@ const Enquiry = sequelize.define("Enquiry", {
        type:DataTypes.TEXT,
        allowNull:true
    },
+  categories: { type: DataTypes.JSON },
 
-
-
-  categories: { type: DataTypes.JSON }
+  user_id:{
+    type:DataTypes.INTEGER,
+    allowNull:false
+  }
 
 }, {
   tableName: "enquiries",

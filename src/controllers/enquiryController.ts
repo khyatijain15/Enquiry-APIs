@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Enquiry from "../models/enquiryModel";
-import { stat } from "node:fs";
+
 
 // CREATE
 export const createEnquiry = async (req: Request, res: Response) => {
@@ -28,6 +28,7 @@ export const createEnquiry = async (req: Request, res: Response) => {
 
     //default status
     req.body.status=0;
+    req.body.user_id=(req as any).user.id;
 
     const enquiry = await Enquiry.create(req.body);
 

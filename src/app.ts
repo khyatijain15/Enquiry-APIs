@@ -4,6 +4,7 @@ import enquiryRoutes from "./routes/enquiryRoutes";
 import authRoutes from "./routes/authRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
 import roleRoutes from "./routes/roleRoutes";
+import userRoutes from "./routes/userRoutes";
 
 
 const app = express();
@@ -16,6 +17,8 @@ app.use("/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/roles",roleRoutes);
+app.use("/users",userRoutes);
+
 
 app.use((req, res) => {
   res.status(404).json({
