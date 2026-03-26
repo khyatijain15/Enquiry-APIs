@@ -121,12 +121,23 @@ export const getEnquiries = async (req: Request, res: Response) => {
     if (!page && !limit && !search) {
 
       const enquiries = await Enquiry.findAll();
+      const total = enquiries.length;
+    const pending = enquiries.filter(e => e.getDataValue("status") === 0).length;
+    const accepted = enquiries.filter(e => e.getDataValue("status") === 1).length;
+    const declined = enquiries.filter(e => e.getDataValue("status") === 2).length;
 
-      return res.json({
-        status: true,
-        message: "Enquiries fetched successfully",
-        data: enquiries
-      });
+
+     return res.json({
+      status: true,
+      summary: {
+        total,
+        pending,
+        accepted,
+        declined
+      },
+      data: enquiries
+    });
+
 
     }
 

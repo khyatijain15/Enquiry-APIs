@@ -1,7 +1,7 @@
 import { Request,Response } from "express";
 import Role from "../models/roleModel";
 import { Op } from "sequelize";
-import { stat } from "node:fs";
+
 
 //create 
 export const createRole=async (req:Request,res:Response)=>{
