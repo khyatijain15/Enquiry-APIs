@@ -6,15 +6,6 @@ import { Op } from "sequelize";
 export const createCategory = async (req: Request, res: Response) => {
   try {
 
-    // to Block query params
-    // if (Object.keys(req.query).length) {
-    //   return res.status(400).json({
-    //     status: false,
-    //     message: "Do not send data in query params",
-    //     data: null
-    //   });
-    // }
-
     const { name } = req.body;
 
     if (!name) {

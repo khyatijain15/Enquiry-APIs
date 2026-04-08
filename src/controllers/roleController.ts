@@ -220,7 +220,7 @@ export const changeRoleStatus=async(req:Request,res:Response)=>{
 
         if(!role){
             return res.status(404).json({
-                stat:false,
+                status:false,
                 message:"Role not found",
                 data:null
             });
