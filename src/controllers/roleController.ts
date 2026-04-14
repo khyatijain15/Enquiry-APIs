@@ -65,7 +65,13 @@ export const getRoles= async (req:Request,res:Response)=>{
         const limitNumber=Number(limit) || 5;
         const offset=(pageNumber-1)*limitNumber;
 
-        const whereCondition:any={};
+        const whereCondition: any = {};
+// default → exclude deleted
+if (req.query.status === undefined) {
+  whereCondition.status = { [Op.ne]: 2 };
+} else {
+  whereCondition.status = Number(req.query.status);
+}
         
         if(search){
             whereCondition.name={

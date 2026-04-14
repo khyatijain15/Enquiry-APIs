@@ -21,7 +21,7 @@ sequelize
     console.log("DB Connected");
 
   
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
 
     console.log("All models synced");
 

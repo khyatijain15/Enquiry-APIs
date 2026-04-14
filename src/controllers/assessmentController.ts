@@ -44,10 +44,26 @@ export const saveAssessmentStep = async (req: Request, res: Response) => {
       8: "step8_finance"
     };
 
-    const field = stepMap[step];
+    // const field = stepMap[step];
+    // assessment[field] = data;
 
-    assessment[field] = data;
-    await assessment.save();
+const stepNumber = Number(step);
+
+if (!stepMap[stepNumber]) {
+  return res.status(400).json({
+    status: false,
+    message: "Invalid step number",
+    data: null
+  });
+}
+
+const field = stepMap[stepNumber];
+
+assessment[field] = data;
+assessment.currentStep = stepNumber;
+assessment.isDraft = true;
+
+await assessment.save();
 
     res.json({
       status: true,

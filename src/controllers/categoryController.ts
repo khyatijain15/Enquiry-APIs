@@ -1,6 +1,9 @@
 import { Request,Response } from "express";
 import Category from "../models/categoryModel";
 import { Op } from "sequelize";
+import fs from "fs";
+import path from "path";
+
 
 //create
 export const createCategory = async (req: Request, res: Response) => {
@@ -70,6 +73,12 @@ export const getCategories = async (req: Request, res: Response) => {
     const offset = (pageNumber - 1) * limitNumber;
 
     const whereCondition: any = {};
+// default → exclude deleted
+if (req.query.status === undefined) {
+  whereCondition.status = { [Op.ne]: 2 };
+} else {
+  whereCondition.status = Number(req.query.status);
+}
 
    //search - filter
     if (search) {
@@ -209,7 +218,19 @@ export const deleteCategory=async(req:Request,res:Response)=>{
                 data:null
             });
         }
-        await category.destroy();
+        //to cleanup images after deleting
+      const image = category.getDataValue("image");
+
+if (image) {
+  const imagePath = path.join(__dirname, "../../uploads", image);
+
+  if (fs.existsSync(imagePath)) {
+    fs.unlinkSync(imagePath);
+  }
+}
+        // await category.destroy();
+        //soft delete
+        await category.update({ status: 2 });
         
         res.json({
             status:true,

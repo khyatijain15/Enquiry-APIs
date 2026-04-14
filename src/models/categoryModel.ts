@@ -17,7 +17,7 @@ const Category = sequelize.define("Category", {
     type: DataTypes.TINYINT,
     defaultValue: 1,
     validate: {
-      isIn: [[0, 1]]
+      isIn: [[0, 1,2]]
     }
   }
 

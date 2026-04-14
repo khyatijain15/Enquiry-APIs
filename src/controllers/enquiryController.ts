@@ -113,46 +113,103 @@ try {
 
 // GET ALL 
 export const getEnquiries = async (req: Request, res: Response) => {
-
   try {
 
-    const { page, limit, search } = req.query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      category,
+      method,
+      urgency,
+      placement_type,
+      startDate,
+      endDate
+    } = req.query;
 
-    if (!page && !limit && !search) {
+    // no pagination and filters
+   
+    if (!page && !limit && !search && !status && !category && !method && !urgency && !placement_type && !startDate && !endDate) {
 
-      const enquiries = await Enquiry.findAll();
+      const enquiries = await Enquiry.findAll({
+        where: {
+          status: { [Op.ne]: 2 } // exclude deleted
+        }
+      });
+
       const total = enquiries.length;
-    const pending = enquiries.filter(e => e.getDataValue("status") === 0).length;
-    const accepted = enquiries.filter(e => e.getDataValue("status") === 1).length;
-    const declined = enquiries.filter(e => e.getDataValue("status") === 2).length;
+      const pending = enquiries.filter(e => e.getDataValue("status") === 0).length;
+      const accepted = enquiries.filter(e => e.getDataValue("status") === 1).length;
+      const declined = enquiries.filter(e => e.getDataValue("status") === 2).length;
 
-
-     return res.json({
-      status: true,
-      summary: {
-        total,
-        pending,
-        accepted,
-        declined
-      },
-      data: enquiries
-    });
-
-
+      return res.json({
+        status: true,
+        summary: {
+          total,
+          pending,
+          accepted,
+          declined
+        },
+        data: enquiries
+      });
     }
 
+    // for pagination and filters
+  
     const pageNumber = Number(page) || 1;
     const limitNumber = Number(limit) || 5;
     const offset = (pageNumber - 1) * limitNumber;
 
     const whereCondition: any = {};
 
+    //status filter
+    if (status === undefined) {
+      whereCondition.status = { [Op.ne]: 2 };
+    } else {
+      whereCondition.status = Number(status);
+    }
+
+    //serach
     if (search) {
       whereCondition.caller_name = {
         [Op.like]: `%${search}%`
       };
     }
+// urgency
+    if (urgency) {
+      whereCondition.urgency = Number(urgency);
+    }
 
+   //placemnent type
+    if (placement_type) {
+      whereCondition.placement_type = placement_type;
+    }
+
+   //category (JSON)
+    if (category) {
+      whereCondition.categories = {
+        [Op.like]: `%${category}%`
+      };
+    }
+
+   //method(JSON)
+    if (method) {
+      whereCondition.methods = {
+        [Op.like]: `%${method}%`
+      };
+    }
+
+    //date range
+    if (startDate && endDate) {
+      whereCondition.date_of_call = {
+        [Op.between]: [
+          new Date(startDate as string),
+          new Date(endDate as string)
+        ]
+      };
+    }
+//db query with pag. and filter
     const enquiries = await Enquiry.findAndCountAll({
       where: whereCondition,
       limit: limitNumber,
@@ -160,6 +217,8 @@ export const getEnquiries = async (req: Request, res: Response) => {
     });
 
     res.json({
+      status: true,
+      message: "Enquiries fetched successfully",
       total: enquiries.count,
       page: pageNumber,
       totalPages: Math.ceil(enquiries.count / limitNumber),
@@ -167,21 +226,17 @@ export const getEnquiries = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-
     res.status(500).json({
       status: false,
       message: "Error fetching enquiries",
       data: null
     });
-
   }
-
 };
 
 
-// GET BY ID
+//get by id
 export const getEnquiryById = async (req: Request, res: Response) => {
-
   try {
 
     const id = Number(req.params.id);
@@ -194,9 +249,10 @@ export const getEnquiryById = async (req: Request, res: Response) => {
       });
     }
 
-    const enquiry = await Enquiry.findByPk(id);
+    const enquiry: any = await Enquiry.findByPk(id);
 
-    if (!enquiry) {
+    // if not found or deleted (status=2)
+    if (!enquiry || enquiry.getDataValue("status") === 2) {
       return res.status(404).json({
         status: false,
         message: "Enquiry not found",
@@ -211,15 +267,12 @@ export const getEnquiryById = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-
     res.status(500).json({
       status: false,
       message: "Error fetching enquiry",
       data: null
     });
-
   }
-
 };
 
 
@@ -240,7 +293,33 @@ export const updateEnquiry = async (req: Request, res: Response) => {
       });
     }
 
-    await enquiry.update(req.body);
+    // await enquiry.update(req.body);
+    //allowed fields to update only-
+    const allowedFields = [
+  "caller_name",
+  "contact_number",
+  "email",
+  "relationship",
+  "caller_address",
+  "resident_name",
+  "dob",
+  "current_location",
+  "current_address",
+  "placement_type",
+  "urgency",
+  "methods",
+  "categories"
+];
+
+const updates: any = {};
+
+for (const key of allowedFields) {
+  if (req.body[key] !== undefined) {
+    updates[key] = req.body[key];
+  }
+}
+
+await enquiry.update(updates);
 
     res.json({
       status: true,
@@ -278,7 +357,9 @@ export const deleteEnquiry = async (req: Request, res: Response) => {
       });
     }
 
-    await enquiry.destroy();
+    // await enquiry.destroy();
+    //soft delete
+    await enquiry.update({ status: 2 });
 
     res.json({
       status: true,

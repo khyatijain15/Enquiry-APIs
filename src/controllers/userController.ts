@@ -9,7 +9,7 @@ export const createUser = async (req: Request, res: Response) => {
 
   try {
 
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role_id } = req.body;
 
     const existingUser = await User.findOne({ where: { email } });
 
@@ -27,7 +27,7 @@ export const createUser = async (req: Request, res: Response) => {
       name,
       email,
       password: hashedPassword,
-      role
+      role_id
     });
 
     res.status(201).json({
@@ -37,7 +37,8 @@ export const createUser = async (req: Request, res: Response) => {
         id: user.getDataValue("id"),
         name: user.getDataValue("name"),
         email: user.getDataValue("email"),
-        role: user.getDataValue("role")
+        role_id: user.getDataValue("role_id")     
+      
       }
     });
 
@@ -82,6 +83,13 @@ export const getUsers = async (req: Request, res: Response) => {
     const offset = (pageNumber - 1) * limitNumber;
 
     const whereCondition: any = {};
+   
+// default → exclude deleted
+if (req.query.status === undefined) {
+  whereCondition.status = { [Op.ne]: 2 };
+} else {
+  whereCondition.status = Number(req.query.status);
+}
 
     if (search) {
       whereCondition.name = {
@@ -89,8 +97,8 @@ export const getUsers = async (req: Request, res: Response) => {
       };
     }
 
-    if (role) {
-      whereCondition.role = role;
+    if (req.query.role_id) {
+      whereCondition.role_id = Number(req.query.role_id);
     }
 
     const users = await User.findAndCountAll({
@@ -165,6 +173,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     const id = Number(req.params.id);
 
+    //find user
     const user = await User.findByPk(id);
 
     if (!user) {
@@ -175,14 +184,41 @@ export const updateUser = async (req: Request, res: Response) => {
       });
     }
 
-    // HASH PASSWORD IF UPDATED
-    if (req.body.password) {
-      req.body.password = await bcrypt.hash(req.body.password, 10);
+    //only allow required fields- 
+    const allowedFields = ["name", "email", "password", "role_id"];
+    const updates: any = {};
+
+   for (const key of allowedFields) {
+  if (req.body[key] !== undefined) {
+    updates[key] = req.body[key];
+  }
+}
+
+//duplicate email check- 
+    if (updates.email) {
+      const existingUser = await User.findOne({
+        where: {
+          email: updates.email,
+          id: { [Op.ne]: id }
+        }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({
+          status: false,
+          message: "Email already exists",
+          data: null
+        });
+      }
     }
 
-    await user.update(req.body);
+// hash password if present
+if (updates.password) {
+  updates.password = await bcrypt.hash(updates.password, 10);
+}
 
-    // FETCH UPDATED USER WITHOUT PASSWORD
+//update user
+await user.update(updates);
     const updatedUser = await User.findByPk(id, {
       attributes: { exclude: ["password"] }
     });
@@ -223,7 +259,9 @@ export const deleteUser = async (req: Request, res: Response) => {
       });
     }
 
-    await user.destroy();
+    // await user.destroy();
+    //soft delete
+    await user.update({ status: 2 });
 
     res.json({
       status: true,

@@ -26,7 +26,12 @@ export const register=async(req:Request,res:Response)=>{
     res.json({
       status:true,
       message:"User registered successfully",
-      data:user
+      data:{
+        id: user.getDataValue("id"),
+        name: user.getDataValue("name"),
+        email: user.getDataValue("email"),
+        role: user.getDataValue("role")
+      }
     });
 
   } catch (error) {

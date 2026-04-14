@@ -45,6 +45,19 @@ const Enquiry = sequelize.define("Enquiry", {
        type:DataTypes.TEXT,
        allowNull:true
    },
+   rejected_at:{
+      type:DataTypes.ENUM("enquiry","paa"),
+      allowNull:true
+   },
+   rejection_date: {
+  type: DataTypes.DATE,
+  allowNull: true
+},
+
+shared_with_homes: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false
+},
   categories: { type: DataTypes.JSON },
 
   user_id:{

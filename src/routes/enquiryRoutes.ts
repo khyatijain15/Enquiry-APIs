@@ -11,7 +11,8 @@ import {
 
 import {
   createEnquiryValidator,
-  enquiryIdValidator
+  enquiryIdValidator,
+  updateStatusValidator
 } from "../validators/enquiryValidator";
 
 import { validate } from "../middleware/validate";
@@ -25,5 +26,7 @@ router.get("/:id", verifyToken, enquiryIdValidator, validate, getEnquiryById);
 router.put("/:id", verifyToken, enquiryIdValidator, validate, updateEnquiry);
 router.delete("/:id", verifyToken, enquiryIdValidator, validate, deleteEnquiry);
 router.patch("/:id/status",verifyToken,enquiryIdValidator,validate,updateEnquiryStatus);
+router.put("/status/:id",updateStatusValidator, updateEnquiryStatus
+);
 
 export default router;
