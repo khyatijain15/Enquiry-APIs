@@ -7,7 +7,7 @@ import User from "../models/userModel";
 //register
 export const register=async(req:Request,res:Response)=>{
   try {
-    const {name,email,password,role}=req.body;
+    const {name,email,password,role_id}=req.body;
     const existingUser=await User.findOne({where:{email}});
 
     if(existingUser){
@@ -21,7 +21,7 @@ export const register=async(req:Request,res:Response)=>{
     const hashedPassword=await bcrypt.hash(password,10);
 
     const user=await User.create({
-      name,email,password:hashedPassword,role
+      name,email,password:hashedPassword,role_id
     });
     res.json({
       status:true,
@@ -30,7 +30,7 @@ export const register=async(req:Request,res:Response)=>{
         id: user.getDataValue("id"),
         name: user.getDataValue("name"),
         email: user.getDataValue("email"),
-        role: user.getDataValue("role")
+        role_id: user.getDataValue("role_id")
       }
     });
 
@@ -56,7 +56,11 @@ export const login=async(req:Request,res:Response)=>{
         data:null
       });
     }
-    const validPassword=await bcrypt.compare(password,user.password);
+    // const validPassword=await bcrypt.compare(password,user.password);
+    const validPassword = await bcrypt.compare(
+  password,
+  user.getDataValue("password")
+);
     if(!validPassword){
       return res.status(401).json({
         status:false,
@@ -67,7 +71,7 @@ export const login=async(req:Request,res:Response)=>{
 
     const token=jwt.sign({
       id:user.id,
-      role:user.role
+      role_id:user.role_id
     },
       process.env.JWT_SECRET as string,
     {expiresIn:"1h"});
