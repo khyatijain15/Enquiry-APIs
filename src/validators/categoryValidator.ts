@@ -1,35 +1,32 @@
-import {body, param} from 'express-validator';
+import { body, param } from "express-validator";
 
 export const createCategoryValidator = [
-
-    body("name")
+  body("name")
     .notEmpty().withMessage("Name is required")
-    .isLength({min:2}).withMessage("Name too short"),
-    
-    body("status")
-    .optional()
-    .isIn([0,1]).withMessage("Status must be either 0 or 1")
+    .isLength({ min: 2 }).withMessage("Name too short"),
 
+  body("status")
+    .optional()
+    .isIn([0, 1, 2]).withMessage("Status must be 0, 1 or 2")
 ];
 
 export const updateCategoryValidator = [
-
-    body("name")
+  body("name")
     .optional()
-    .isLength({min:2}).withMessage("Name too short"),
+    .isLength({ min: 2 }).withMessage("Name too short"),
 
-    body("status")
+  body("status")
     .optional()
-    .isIn([0,1]).withMessage("Status must be either 0 or 1")
+    .isIn([0, 1, 2]).withMessage("Status must be 0, 1 or 2")
 ];
 
-export const statusValidator=[
-    body("status")
+export const statusValidator = [
+  body("status")
     .notEmpty().withMessage("Status is required")
-    .isIn([0,1]).withMessage("Status must be either 0 or 1")
+    .isIn([0, 1, 2]).withMessage("Status must be 0, 1 or 2")
 ];
 
-export const categoryIdValidator=[
-    param("id").isInt().withMessage("Invalid category ID")
-    
+export const categoryIdValidator = [
+  param("id")
+    .isInt().withMessage("Invalid category ID")
 ];

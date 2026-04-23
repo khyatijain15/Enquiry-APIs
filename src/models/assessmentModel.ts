@@ -8,17 +8,17 @@ const Assessment = sequelize.define("assessments", {
     primaryKey: true
   },
 
-  enquiryId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    unique: true
+ enquiryId: {
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  unique: true,
+  references: {
+    model: "enquiries",
+    key: "id"
   },
-
-  isDraft: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
-  },
-
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+},
   status: {
     type: DataTypes.ENUM("draft", "completed"),
     defaultValue: "draft"

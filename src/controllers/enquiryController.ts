@@ -90,12 +90,13 @@ try {
       data:null
     })
   };
+await enquiry.update({
+  status,
+  reason: status === 2 ? reason : null,
+  rejected_at: status === 2 ? "enquiry" : null,
+  rejection_date: status === 2 ? new Date() : null
+});
 
-  await enquiry.update({
-    status,
-    reason:status==2 ? reason : null
-
-  })
   return res.json({
     status:true,
     message:"Enquiry status updated successfully",
@@ -128,23 +129,26 @@ export const getEnquiries = async (req: Request, res: Response) => {
       endDate
     } = req.query;
 
-    // no pagination and filters
-   
-    if (!page && !limit && !search && !status && !category && !method && !urgency && !placement_type && !startDate && !endDate) {
+ 
+if (!page && !limit && !search && !status && !category && !method && !urgency && !placement_type && !startDate && !endDate) {
+
+      // fetch all for summary (including declined)
+      const allEnquiries = await Enquiry.findAll();
+
+      const total = allEnquiries.length;
+      const pending = allEnquiries.filter(e => e.getDataValue("status") === 0).length;
+      const accepted = allEnquiries.filter(e => e.getDataValue("status") === 1).length;
+      const declined = allEnquiries.filter(e => e.getDataValue("status") === 2).length;
 
       const enquiries = await Enquiry.findAll({
         where: {
-          status: { [Op.ne]: 2 } // exclude deleted
+          status: { [Op.ne]: 2 }
         }
       });
 
-      const total = enquiries.length;
-      const pending = enquiries.filter(e => e.getDataValue("status") === 0).length;
-      const accepted = enquiries.filter(e => e.getDataValue("status") === 1).length;
-      const declined = enquiries.filter(e => e.getDataValue("status") === 2).length;
-
       return res.json({
         status: true,
+        message: "Enquiries fetched successfully",
         summary: {
           total,
           pending,
@@ -154,6 +158,7 @@ export const getEnquiries = async (req: Request, res: Response) => {
         data: enquiries
       });
     }
+
 
     // for pagination and filters
   
@@ -170,13 +175,14 @@ export const getEnquiries = async (req: Request, res: Response) => {
       whereCondition.status = Number(status);
     }
 
-    //serach
+    //search
     if (search) {
       whereCondition.caller_name = {
         [Op.like]: `%${search}%`
       };
     }
-// urgency
+
+   // urgency
     if (urgency) {
       whereCondition.urgency = Number(urgency);
     }
@@ -201,15 +207,43 @@ export const getEnquiries = async (req: Request, res: Response) => {
     }
 
     //date range
-    if (startDate && endDate) {
-      whereCondition.date_of_call = {
-        [Op.between]: [
-          new Date(startDate as string),
-          new Date(endDate as string)
-        ]
-      };
-    }
-//db query with pag. and filter
+    if (startDate || endDate) {
+    // both must be present
+    if (!startDate || !endDate) {
+    return res.status(400).json({
+      status: false,
+      message: "Both startDate and endDate are required",
+      data: null
+    });
+  }
+
+  const start = new Date(String(startDate));
+  const end = new Date(String(endDate));
+
+  // invalid date check
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return res.status(400).json({
+      status: false,
+      message: "Invalid date format",
+      data: null
+    });
+  }
+
+    // logical check
+    if (start > end) {
+     return res.status(400).json({
+      status: false,
+      message: "startDate cannot be greater than endDate",
+      data: null
+    });
+  }
+
+   whereCondition.date_of_call = {
+    [Op.between]: [start, end]
+  };
+}
+
+    //db query with pag. and filter
     const enquiries = await Enquiry.findAndCountAll({
       where: whereCondition,
       limit: limitNumber,
@@ -295,7 +329,7 @@ export const updateEnquiry = async (req: Request, res: Response) => {
 
     // await enquiry.update(req.body);
     //allowed fields to update only-
-    const allowedFields = [
+const allowedFields = [
   "caller_name",
   "contact_number",
   "email",
@@ -308,9 +342,33 @@ export const updateEnquiry = async (req: Request, res: Response) => {
   "placement_type",
   "urgency",
   "methods",
-  "categories"
+  "categories",
+  "hsc_number",
+  "source",
+  "diagnosis",
+  "mobility",
+  "care_needs",
+  "medications",
+  "preferred_location",
+  "date_of_call"
 ];
 
+// field validation
+const requestFields = Object.keys(req.body);
+
+const invalidFields = requestFields.filter(
+  (field) => !allowedFields.includes(field)
+);
+
+if (invalidFields.length > 0) {
+  return res.status(400).json({
+    status: false,
+    message: `Invalid fields: ${invalidFields.join(", ")}`,
+    data: null
+  });
+}
+
+//build updates
 const updates: any = {};
 
 for (const key of allowedFields) {
@@ -320,6 +378,12 @@ for (const key of allowedFields) {
 }
 
 await enquiry.update(updates);
+
+for (const key of allowedFields) {
+  if (req.body[key] !== undefined) {
+    updates[key] = req.body[key];
+  }
+}
 
     res.json({
       status: true,
@@ -339,7 +403,6 @@ await enquiry.update(updates);
 
 };
 
-
 // DELETE
 export const deleteEnquiry = async (req: Request, res: Response) => {
 
@@ -357,7 +420,6 @@ export const deleteEnquiry = async (req: Request, res: Response) => {
       });
     }
 
-    // await enquiry.destroy();
     //soft delete
     await enquiry.update({ status: 2 });
 

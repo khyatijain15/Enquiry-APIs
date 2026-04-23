@@ -1,9 +1,7 @@
-
 //setting server
+import "./config/env"; 
 import app from "./app";
 import sequelize from "./config/db";
-import dotenv from "dotenv";
-
 
 import "./models/userModel";
 import "./models/categoryModel";
@@ -11,15 +9,11 @@ import "./models/enquiryModel";
 import "./models/roleModel";
 import "./models/assessmentModel"; 
 
-dotenv.config();
-
 const PORT = process.env.PORT || 3000;
-
 sequelize
   .authenticate()
   .then(async () => {
     console.log("DB Connected");
-
   
     await sequelize.sync();
 

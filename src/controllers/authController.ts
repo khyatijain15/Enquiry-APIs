@@ -56,6 +56,7 @@ export const login=async(req:Request,res:Response)=>{
         data:null
       });
     }
+    
     // const validPassword=await bcrypt.compare(password,user.password);
     const validPassword = await bcrypt.compare(
   password,

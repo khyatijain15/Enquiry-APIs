@@ -2,13 +2,18 @@ import { Request, Response } from "express";
 import Assessment from "../models/assessmentModel";
 import Enquiry from "../models/enquiryModel";
 
-
-// SAVE STEP
 export const saveAssessmentStep = async (req: Request, res: Response) => {
   try {
     const { enquiryId, step, data } = req.body;
 
-    // CHECK ENQUIRY
+    if (!enquiryId || !step) {
+      return res.status(400).json({
+        status: false,
+        message: "enquiryId and step are required",
+        data: null
+      });
+    }
+
     const enquiry: any = await Enquiry.findByPk(enquiryId);
 
     if (!enquiry) {
@@ -44,35 +49,32 @@ export const saveAssessmentStep = async (req: Request, res: Response) => {
       8: "step8_finance"
     };
 
-    // const field = stepMap[step];
-    // assessment[field] = data;
+    const stepNumber = Number(step);
 
-const stepNumber = Number(step);
+    if (!stepMap[stepNumber]) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid step number",
+        data: null
+      });
+    }
 
-if (!stepMap[stepNumber]) {
-  return res.status(400).json({
-    status: false,
-    message: "Invalid step number",
-    data: null
-  });
-}
+    const field = stepMap[stepNumber];
 
-const field = stepMap[stepNumber];
+    assessment[field] = data;
 
-assessment[field] = data;
-assessment.currentStep = stepNumber;
-assessment.isDraft = true;
-
-await assessment.save();
+    await assessment.save();
 
     res.json({
       status: true,
-      message: `Step ${step} saved successfully`,
+      message: `Step ${stepNumber} saved successfully`,
       data: assessment
     });
 
-  } catch (error) {
-    res.status(500).json({
+  } catch (error: any) {
+    console.error("SAVE STEP ERROR:", error);
+
+    return res.status(500).json({
       status: false,
       message: "Error saving assessment",
       data: null
@@ -81,7 +83,7 @@ await assessment.save();
 };
 
 
-//  GET
+// GET
 export const getAssessment = async (req: Request, res: Response) => {
   try {
     const { enquiryId } = req.params;
@@ -90,16 +92,26 @@ export const getAssessment = async (req: Request, res: Response) => {
       where: { enquiryId }
     });
 
+    if (!assessment) {
+      return res.status(404).json({
+        status: false,
+        message: "Assessment not found",
+        data: null
+      });
+    }
+
     res.json({
       status: true,
       message: "Assessment fetched",
       data: assessment
     });
 
-  } catch (error) {
-    res.status(500).json({
+  } catch (error: any) {
+    console.error("GET ERROR:", error);
+
+    return res.status(500).json({
       status: false,
-      message: "Error fetching",
+      message: "Error fetching assessment",
       data: null
     });
   }
@@ -110,6 +122,14 @@ export const getAssessment = async (req: Request, res: Response) => {
 export const completeAssessment = async (req: Request, res: Response) => {
   try {
     const { enquiryId } = req.body;
+
+    if (!enquiryId) {
+      return res.status(400).json({
+        status: false,
+        message: "enquiryId is required",
+        data: null
+      });
+    }
 
     const assessment: any = await Assessment.findOne({
       where: { enquiryId }
@@ -123,16 +143,39 @@ export const completeAssessment = async (req: Request, res: Response) => {
       });
     }
 
-    if (!assessment.step1_personalInfo || !assessment.step8_finance) {
-      return res.status(400).json({
-        status: false,
-        message: "Complete all required steps before submitting",
-        data: null
-      });
+    const steps = [
+      "step1_personalInfo",
+      "step2_medicalHistory",
+      "step3_clinical",
+      "step4_careNeeds",
+      "step5_behavior",
+      "step6_endOfLife",
+      "step7_preferences",
+      "step8_finance"
+    ];
+
+    for (const step of steps) {
+      const value = assessment[step];
+
+      if (!value) {
+        return res.status(400).json({
+          status: false,
+          message: `Please complete ${step}`,
+          data: null
+        });
+      }
+
+      if (typeof value === "object" && Object.keys(value).length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: `${step} cannot be empty`,
+          data: null
+        });
+      }
     }
 
+    // mark complete
     assessment.status = "completed";
-    assessment.isDraft = false;
 
     await assessment.save();
 
@@ -142,8 +185,10 @@ export const completeAssessment = async (req: Request, res: Response) => {
       data: assessment
     });
 
-  } catch (error) {
-    res.status(500).json({
+  } catch (error: any) {
+    console.error("COMPLETE ERROR:", error);
+
+    return res.status(500).json({
       status: false,
       message: "Error completing assessment",
       data: null

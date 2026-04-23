@@ -1,20 +1,44 @@
-import { Request,Response } from "express";
+import { Request, Response } from "express";
 import Category from "../models/categoryModel";
 import { Op } from "sequelize";
 import fs from "fs";
 import path from "path";
 
+// helper for safe file delete
+const deleteFile = (filename: string) => {
+  const uploadsDir = path.resolve(__dirname, "../../uploads");
+  const filePath = path.resolve(uploadsDir, filename);
+
+  if (filePath.startsWith(uploadsDir) && fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+};
 
 //create
 export const createCategory = async (req: Request, res: Response) => {
   try {
-
     const { name } = req.body;
 
+    // name validation
     if (!name) {
+      if (req.file) deleteFile(req.file.filename);
+
       return res.status(400).json({
         status: false,
         message: "Name is required",
+        data: null
+      });
+    }
+
+    // duplicate check BEFORE create
+    const existing = await Category.findOne({ where: { name } });
+
+    if (existing) {
+      if (req.file) deleteFile(req.file.filename);
+
+      return res.status(400).json({
+        status: false,
+        message: "Category already exists",
         data: null
       });
     }
@@ -32,15 +56,9 @@ export const createCategory = async (req: Request, res: Response) => {
       data: category
     });
 
-  } catch (error: any) {
+  } catch (error) {
 
-    if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(400).json({
-        status: false,
-        message: "Category already exists",
-        data: null
-      });
-    }
+    if (req.file) deleteFile(req.file.filename);
 
     res.status(500).json({
       status: false,
@@ -50,15 +68,39 @@ export const createCategory = async (req: Request, res: Response) => {
   }
 };
 
-//get all
+//get all with pag, search and filter
 export const getCategories = async (req: Request, res: Response) => {
   try {
-
     const { page, limit, search, status } = req.query;
 
-    if (!page && !limit && !search && status === undefined) {
+    const whereCondition: any = {};
 
-      const categories = await Category.findAll();
+    
+if (status === undefined) {
+  whereCondition.status = { [Op.ne]: 2 };
+} else {
+  const statusNumber = Number(status);
+
+  if (![0, 1, 2].includes(statusNumber)) {
+    return res.status(400).json({
+      status: false,
+      message: "Status must be 0, 1 or 2",
+      data: null
+    });
+  }
+
+  whereCondition.status = statusNumber;
+}
+
+    if (search) {
+      whereCondition.name = {
+        [Op.like]: `%${search}%`
+      };
+    }
+
+    // no pagination
+    if (!page && !limit && !search && status === undefined) {
+      const categories = await Category.findAll({ where: whereCondition });
 
       return res.json({
         status: true,
@@ -67,35 +109,9 @@ export const getCategories = async (req: Request, res: Response) => {
       });
     }
 
-    // pagination
     const pageNumber = Number(page) || 1;
     const limitNumber = Number(limit) || 5;
     const offset = (pageNumber - 1) * limitNumber;
-
-    const whereCondition: any = {};
-// default → exclude deleted
-if (req.query.status === undefined) {
-  whereCondition.status = { [Op.ne]: 2 };
-} else {
-  whereCondition.status = Number(req.query.status);
-}
-
-   //search - filter
-    if (search) {
-      whereCondition.name = {
-        [Op.like]: `%${search}%`
-      };
-    }
-    if (status !== undefined) {
-      if (![0, 1].includes(Number(status))) {
-        return res.status(400).json({
-          status: false,
-          message: "Status must be 0 or 1",
-          data: null
-        });
-      }
-      whereCondition.status = Number(status);
-    }
 
     const result = await Category.findAndCountAll({
       where: whereCondition,
@@ -104,6 +120,8 @@ if (req.query.status === undefined) {
     });
 
     res.json({
+      status: true,
+      message: "Categories fetched successfully",
       total: result.count,
       page: pageNumber,
       totalPages: Math.ceil(result.count / limitNumber),
@@ -111,7 +129,6 @@ if (req.query.status === undefined) {
     });
 
   } catch (error) {
-
     res.status(500).json({
       status: false,
       message: "Error fetching categories",
@@ -120,39 +137,10 @@ if (req.query.status === undefined) {
   }
 };
 
-//get by id
-export const getCategoryById=async(req:Request,res:Response)=>{
-    try {
-        const id=Number(req.params.id);
-        const category=await Category.findByPk(id);
-
-        if(!category){
-            return res.status(404).json({
-                status:false,
-                message:"Category not found",
-                data:null
-            });
-        }
-        res.json({
-            status:true,
-            message:"Category fetched successfully",
-            data:category
-        });
-    } catch (error) {
-        res.status(500).json({
-            status:false,
-            message:"Error fetching category",
-            data:null
-        })
-    }
-};
-
-//update
-export const updateCategory = async (req: Request, res: Response) => {
+// get by id
+export const getCategoryById = async (req: Request, res: Response) => {
   try {
-
     const id = Number(req.params.id);
-    const { name } = req.body;
 
     const category = await Category.findByPk(id);
 
@@ -164,7 +152,40 @@ export const updateCategory = async (req: Request, res: Response) => {
       });
     }
 
-    //to check dupllicate entry
+    res.json({
+      status: true,
+      message: "Category fetched successfully",
+      data: category
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error fetching category",
+      data: null
+    });
+  }
+};
+
+// update
+export const updateCategory = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { name } = req.body;
+
+    const category = await Category.findByPk(id);
+
+    if (!category) {
+      if (req.file) deleteFile(req.file.filename);
+
+      return res.status(404).json({
+        status: false,
+        message: "Category not found",
+        data: null
+      });
+    }
+
+    // duplicate check
     if (name) {
       const existing = await Category.findOne({
         where: {
@@ -174,6 +195,8 @@ export const updateCategory = async (req: Request, res: Response) => {
       });
 
       if (existing) {
+        if (req.file) deleteFile(req.file.filename);
+
         return res.status(400).json({
           status: false,
           message: "Category already exists",
@@ -182,7 +205,9 @@ export const updateCategory = async (req: Request, res: Response) => {
       }
     }
 
-    const image = req.file ? req.file.filename : category.getDataValue("image");
+    const image = req.file
+      ? req.file.filename
+      : category.getDataValue("image");
 
     await category.update({
       ...req.body,
@@ -197,6 +222,8 @@ export const updateCategory = async (req: Request, res: Response) => {
 
   } catch (error) {
 
+    if (req.file) deleteFile(req.file.filename);
+
     res.status(500).json({
       status: false,
       message: "Error updating category",
@@ -205,68 +232,54 @@ export const updateCategory = async (req: Request, res: Response) => {
   }
 };
 
-//delete
-export const deleteCategory=async(req:Request,res:Response)=>{
-    try {
-        const id =Number(req.params.id);
-        const category=await Category.findByPk(id);
-        
-        if(!category){
-            return res.status(404).json({
-                status:false,
-                message:"Category not found",
-                data:null
-            });
-        }
-        //to cleanup images after deleting
-      const image = category.getDataValue("image");
-
-if (image) {
-  const imagePath = path.join(__dirname, "../../uploads", image);
-
-  if (fs.existsSync(imagePath)) {
-    fs.unlinkSync(imagePath);
-  }
-}
-        // await category.destroy();
-        //soft delete
-        await category.update({ status: 2 });
-        
-        res.json({
-            status:true,
-            message:"Category deleted successfully",
-            data:null
-        });
-    } catch (error) {
-        res.status(500).json({
-            status:false,
-            message:"Error deleting category",
-            data:null
-        })
-    }
-}
-
-//change status    
-export const changeCategoryStatus = async (req: Request, res: Response) => {
+// delete
+export const deleteCategory = async (req: Request, res: Response) => {
   try {
-
     const id = Number(req.params.id);
-    const { status } = req.body;
 
-    // to validate ID
-    if (!id) {
-      return res.status(400).json({
+    const category = await Category.findByPk(id);
+
+    if (!category) {
+      return res.status(404).json({
         status: false,
-        message: "Invalid category ID",
+        message: "Category not found",
         data: null
       });
     }
 
-    // to validate status
-    if (status === undefined || ![0, 1].includes(Number(status))) {
+    const image = category.getDataValue("image");
+
+    if (image) {
+      deleteFile(image);
+    }
+
+    await category.update({ status: 2 });
+
+    res.json({
+      status: true,
+      message: "Category deleted successfully",
+      data: null
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error deleting category",
+      data: null
+    });
+  }
+};
+
+// change status
+export const changeCategoryStatus = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+
+    if (!id) {
       return res.status(400).json({
         status: false,
-        message: "Status must be 0 or 1",
+        message: "Invalid category ID",
         data: null
       });
     }
@@ -281,9 +294,7 @@ export const changeCategoryStatus = async (req: Request, res: Response) => {
       });
     }
 
-    await category.update({
-      status: Number(status) 
-    });
+    await category.update({ status: Number(status) });
 
     res.json({
       status: true,
@@ -292,9 +303,6 @@ export const changeCategoryStatus = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-
-    console.error("STATUS ERROR:", error); 
-
     res.status(500).json({
       status: false,
       message: "Error updating category status",

@@ -17,19 +17,31 @@ export const createRole=async (req:Request,res:Response)=>{
         }
 
         //duplicate
-        const existing=await Role.findOne({
-            where:{
-                [Op.or] : [{name},{shortName}]
-            }
-        });
+        // check name duplicate
+const existingName = await Role.findOne({
+  where: { name }
+});
 
-        if(existing){
-            return res.status(400).json({
-                status:false,
-                message:"Role already exists",
-                data:null
-            });
-        }
+if (existingName) {
+  return res.status(400).json({
+    status: false,
+    message: "Role name already exists",
+    data: null
+  });
+}
+
+// check shortName duplicate
+const existingShortName = await Role.findOne({
+  where: { shortName }
+});
+
+if (existingShortName) {
+  return res.status(400).json({
+    status: false,
+    message: "Role shortName already exists",
+    data: null
+  });
+}
 
         const role=await Role.create(req.body);
 
@@ -150,21 +162,39 @@ export const updateRole= async (req:Request,res:Response)=>{
 
         const {name,shortName}=req.body;
 
-        if(name||shortName){
-            const existing=await Role.findOne({
-                where:{
-                [Op.or]:[{name},{shortName}],
-                id:{[Op.ne]:id}
-                }
-            });
-            if(existing){
-                return res.status(400).json({
-                    status:false,
-                    message:"Role already exists",
-                    data:null
-                })
-            }
-        }
+        if (name) {
+  const existingName = await Role.findOne({
+    where: {
+      name,
+      id: { [Op.ne]: id }
+    }
+  });
+
+  if (existingName) {
+    return res.status(400).json({
+      status: false,
+      message: "Role name already exists",
+      data: null
+    });
+  }
+}
+
+if (shortName) {
+  const existingShortName = await Role.findOne({
+    where: {
+      shortName,
+      id: { [Op.ne]: id }
+    }
+  });
+
+  if (existingShortName) {
+    return res.status(400).json({
+      status: false,
+      message: "Role shortName already exists",
+      data: null
+    });
+  }
+}
         await role.update(req.body);
 
         res.json({
@@ -182,45 +212,41 @@ export const updateRole= async (req:Request,res:Response)=>{
 }
 
 //delete
-export const deleteRole=async (req:Request,res:Response)=>{
-    try {
-        const id=Number(req.params.id)
-        const role=await Role.findByPk(id);
+export const deleteRole = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
 
-        if(!role){
-            return res.status(404).json({
-                status:false,
-                message:"Role not found",
-                data:null
-            });
-        }
-        await role.destroy();
+    const role: any = await Role.findByPk(id);
 
-        res.json({
-            status:true,
-            message:"Role deleted successfully",
-            data:null
-        })
-    } catch (error) {
-        res.status(500).json({
-            status:false,
-            message:"Error deleting role",
-            data:null
-        });
+    if (!role || role.getDataValue("status") === 2) {
+      return res.status(404).json({
+        status: false,
+        message: "Role not found",
+        data: null
+      });
     }
-}
 
-//status
+    await role.update({ status: 2 });
+
+    res.json({
+      status: true,
+      message: "Role deleted successfully",
+      data: null
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error deleting role",
+      data: null
+    });
+  }
+};
+
 export const changeRoleStatus=async(req:Request,res:Response)=>{
     try {
         const {status}=req.body;
-        if(![0,1].includes(Number(status))){
-            return res.status(400).json({
-                status:false,
-                message:"Status must be 0 or 1",
-                data:null
-            });
-        }
+    
         const id =Number(req.params.id);
         const role=await Role.findByPk(id);
 

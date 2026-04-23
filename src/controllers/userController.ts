@@ -54,18 +54,42 @@ export const createUser = async (req: Request, res: Response) => {
 
 };
 
-
 // GET USERS
 export const getUsers = async (req: Request, res: Response) => {
-
   try {
+    const { page, limit, search, role_id } = req.query;
+    if (role_id && isNaN(Number(role_id))) {
+  return res.status(400).json({
+    status: false,
+    message: "role_id must be a valid number",
+    data: null
+  });
+}
 
-    const { page, limit, search, role } = req.query;
+    const whereCondition: any = {};
 
-    // NORMAL REQUEST
-    if (!page && !limit && !search && !role) {
+    // default → exclude deleted
+    if (req.query.status === undefined) {
+      whereCondition.status = { [Op.ne]: 2 };
+    } else {
+      whereCondition.status = Number(req.query.status);
+    }
 
+    // search filter
+    if (search) {
+      whereCondition.name = {
+        [Op.like]: `%${search}%`
+      };
+    }
+
+    if (role_id) {
+      whereCondition.role_id = Number(role_id);
+    }
+
+    // no pagination
+    if (!page && !limit && !search && !role_id) {
       const users = await User.findAll({
+        where: whereCondition,
         attributes: { exclude: ["password"] }
       });
 
@@ -74,32 +98,11 @@ export const getUsers = async (req: Request, res: Response) => {
         message: "Users fetched successfully.",
         data: users
       });
-
     }
-
-    // PAGINATION / SEARCH / FILTER
+  //pagination
     const pageNumber = Number(page) || 1;
     const limitNumber = Number(limit) || 5;
     const offset = (pageNumber - 1) * limitNumber;
-
-    const whereCondition: any = {};
-   
-// default → exclude deleted
-if (req.query.status === undefined) {
-  whereCondition.status = { [Op.ne]: 2 };
-} else {
-  whereCondition.status = Number(req.query.status);
-}
-
-    if (search) {
-      whereCondition.name = {
-        [Op.like]: `%${search}%`
-      };
-    }
-
-    if (req.query.role_id) {
-      whereCondition.role_id = Number(req.query.role_id);
-    }
 
     const users = await User.findAndCountAll({
       where: whereCondition,
@@ -109,6 +112,8 @@ if (req.query.status === undefined) {
     });
 
     res.json({
+      status: true,
+      message: "Users fetched successfully.",
       total: users.count,
       page: pageNumber,
       totalPages: Math.ceil(users.count / limitNumber),
@@ -116,15 +121,12 @@ if (req.query.status === undefined) {
     });
 
   } catch (error) {
-
     res.status(500).json({
       status: false,
       message: "Error fetching users",
       data: null
     });
-
   }
-
 };
 
 
@@ -164,7 +166,6 @@ export const getUserById = async (req: Request, res: Response) => {
   }
 
 };
-
 
 // UPDATE USER
 export const updateUser = async (req: Request, res: Response) => {
@@ -258,8 +259,6 @@ export const deleteUser = async (req: Request, res: Response) => {
         data: null
       });
     }
-
-    // await user.destroy();
     //soft delete
     await user.update({ status: 2 });
 
